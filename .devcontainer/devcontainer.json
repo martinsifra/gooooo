@@ -1,0 +1,5 @@
+{
+	"name": "Gooooo",
+	"dockerComposeFile": "docker-compose.yml",
+	"service": "api"
+}
