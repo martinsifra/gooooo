@@ -9,9 +9,15 @@ services:
       - "80:80"
   database:
     image: mysql/mysql-server:latest
-#    command: --sql_mode="" --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
     environment:
       MYSQL_ROOT_PASSWORD: root
       MYSQL_DATABASE: gooooo
       MYSQL_USER: martin
       MYSQL_PASSWORD: martin
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - ./database:/docker-entrypoint-initdb.d
+      - database_data:/var/lib/mysql
+
+volumes:
+  database_data:
