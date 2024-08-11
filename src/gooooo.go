@@ -1,8 +1,12 @@
 package main
 
 import (
+	"fmt"
 	"github.com/labstack/echo/v4"
+	"gorm.io/driver/mysql"
+	"gorm.io/gorm"
 	"net/http"
+	"os"
 	"time"
 )
 
@@ -12,6 +16,19 @@ func main() {
 		Name      string `json:"name"`
 		Email     string `json:"email"`
 		Birthdate string `json:"date_of_birth"`
+	}
+
+	dsn := fmt.Sprintf(
+		"%s:%s@tcp(%s:3306)/%s?charset=utf8mb4&parseTime=True&loc=Local",
+		os.Getenv("DB_USER"),
+		os.Getenv("DB_PASSWORD"),
+		os.Getenv("DB_HOST"),
+		os.Getenv("DB_NAME"),
+	)
+
+	_, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
+	if err != nil {
+		panic(err)
 	}
 
 	e := echo.New()
