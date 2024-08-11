@@ -11,7 +11,7 @@ import (
 )
 
 func main() {
-	type User struct {
+	type UserDto struct {
 		Id        string `json:"id"`
 		Name      string `json:"name"`
 		Email     string `json:"email"`
@@ -36,7 +36,7 @@ func main() {
 	e.GET("/:id", func(c echo.Context) error {
 		id := c.Param("id")
 
-		u := &User{
+		u := &UserDto{
 			Id:        id,
 			Name:      "Karel Novák",
 			Email:     "karel.novak@whalebone.io",
@@ -47,7 +47,7 @@ func main() {
 	})
 
 	e.POST("/save", func(c echo.Context) error {
-		u := new(User)
+		u := new(UserDto)
 		if err := c.Bind(u); err != nil {
 			return c.String(http.StatusBadRequest, "bad request")
 		}
