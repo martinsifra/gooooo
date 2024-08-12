@@ -3,6 +3,7 @@ module martinsifra/gooooo
 go 1.22.6
 
 require (
+	github.com/google/uuid v1.6.0
 	github.com/labstack/echo/v4 v4.12.0
 	gorm.io/driver/mysql v1.5.7
 	gorm.io/gorm v1.25.11

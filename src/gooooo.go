@@ -1,7 +1,9 @@
 package main
 
 import (
+	"errors"
 	"fmt"
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
@@ -10,14 +12,24 @@ import (
 	"time"
 )
 
-func main() {
-	type UserDto struct {
-		Id        string `json:"id"`
-		Name      string `json:"name"`
-		Email     string `json:"email"`
-		Birthdate string `json:"date_of_birth"`
-	}
+const birthdateFormat = "2006-01-02T15:04:05-07:00"
 
+var (
+	database *gorm.DB
+)
+
+func main() {
+	connect()
+
+	e := echo.New()
+
+	e.GET("/:id", get)
+	e.POST("/save", save)
+
+	e.Logger.Fatal(e.Start(":80"))
+}
+
+func connect() {
 	dsn := fmt.Sprintf(
 		"%s:%s@tcp(%s:3306)/%s?charset=utf8mb4&parseTime=True&loc=Local",
 		os.Getenv("DB_USER"),
@@ -26,34 +38,81 @@ func main() {
 		os.Getenv("DB_NAME"),
 	)
 
-	_, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
+	var err error
+	database, err = gorm.Open(mysql.Open(dsn), &gorm.Config{})
 	if err != nil {
 		panic(err)
 	}
+}
 
-	e := echo.New()
+func get(c echo.Context) error {
+	id := c.Param("id")
 
-	e.GET("/:id", func(c echo.Context) error {
-		id := c.Param("id")
+	var user User
+	result := database.First(&user, "id = ?", id).Error
 
-		u := &UserDto{
-			Id:        id,
-			Name:      "Karel Novák",
-			Email:     "karel.novak@whalebone.io",
-			Birthdate: time.Now().Format("2006-01-02T15:04:05-07:00"),
-		}
+	if errors.Is(result, gorm.ErrRecordNotFound) {
+		return c.NoContent(http.StatusNotFound)
+	}
 
-		return c.JSON(http.StatusOK, u)
-	})
+	dto := &UserDto{
+		Id:        user.Id.String(),
+		Name:      *user.Name,
+		Email:     user.Email,
+		Birthdate: user.Birthdate.Format(birthdateFormat),
+	}
 
-	e.POST("/save", func(c echo.Context) error {
-		u := new(UserDto)
-		if err := c.Bind(u); err != nil {
-			return c.String(http.StatusBadRequest, "bad request")
-		}
+	return c.JSON(http.StatusOK, dto)
+}
 
-		return c.JSON(http.StatusOK, u)
-	})
+func save(c echo.Context) error {
+	dto := new(UserDto)
 
-	e.Logger.Fatal(e.Start(":80"))
+	errBind := c.Bind(dto)
+	if errBind != nil {
+		return c.String(http.StatusBadRequest, "Bad request")
+	}
+
+	var existing User
+	result := database.First(&existing, "id = ?", dto.Id).Error
+
+	id, errUuid := uuid.Parse(dto.Id)
+	if errUuid != nil {
+		return c.JSON(http.StatusBadRequest, "invalid UUID")
+	}
+
+	birthdate, _ := time.Parse(birthdateFormat, dto.Birthdate)
+
+	user := &User{
+		Id:        id,
+		Name:      &dto.Name,
+		Email:     dto.Email,
+		Birthdate: &birthdate,
+	}
+
+	if errors.Is(result, gorm.ErrRecordNotFound) {
+		// Create
+		database.Create(&user)
+	} else {
+		// Update
+		database.Save(&user)
+	}
+
+	return c.NoContent(http.StatusOK)
+}
+
+type UserDto struct {
+	Id        string `json:"id"`
+	Name      string `json:"name"`
+	Email     string `json:"email"`
+	Birthdate string `json:"date_of_birth"`
+
+	// todo Validation should be done with https://echo.labstack.com/docs/request#validate-data
+}
+
+type User struct {
+	Id        uuid.UUID `gorm:"type:char(36);primary_key;"`
+	Name      *string
+	Email     string `gorm:"unique;not null;"`
+	Birthdate *time.Time
 }
